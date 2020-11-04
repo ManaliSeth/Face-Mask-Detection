@@ -6,37 +6,34 @@ import numpy as np
 import imutils
 
 cap = cv2.VideoCapture(0)
-fourcc = cv2.VideoWriter_fourcc(*'XVID')
-out = cv2.VideoWriter('C:/Users/DELL/Desktop/opt.avi',fourcc,20,(640,480))
+fourcc = cv2.VideoWriter_fourcc(*'DIVX')
+out = cv2.VideoWriter('C:/Users/DELL/Desktop/opt.mp4',fourcc,20,(640,480))
 
-prototxtPath = 'C:/Users/DELL/Downloads/face-mask-detector/face_detector/deploy.prototxt'
-weightsPath = 'C:/Users/DELL/Downloads/face-mask-detector/face_detector/res10_300x300_ssd_iter_140000.caffemodel'
-serialized_fdm = cv2.dnn.readNet(prototxtPath, weightsPath)
+prototxtPath = 'C:/Users/DELL/PycharmProjects/face-mask-detector/face_detector/deploy.prototxt'
+weightsPath = 'C:/Users/DELL/PycharmProjects/face-mask-detector/face_detector/res10_300x300_ssd_iter_140000.caffemodel'
+faceNet = cv2.dnn.readNet(prototxtPath, weightsPath)
 
-fmdm = load_model('C:/Users/DELL/Downloads/face-mask-detector/mask_detector.model')
+maskNet = load_model('C:/Users/DELL/PycharmProjects/face-mask-detector/mask_detector.model')
 
 while True:
       ret , frame = cap.read()
       frame = imutils.resize(frame, width=400)
-      # print(frame.shape)
       height = frame.shape[0]
       width = frame.shape[1]
       average = frame.mean(axis=0).mean(axis=0)
-      # print(average)
       blob = cv2.dnn.blobFromImage(frame,1.0,(350,350),(77,77,77),True)
 
-      serialized_fdm.setInput(blob)
-      box_detect = serialized_fdm.forward()
-      # print(box_detect.shape)
+      faceNet.setInput(blob)
+      detections = faceNet.forward()
 
-      ROI=[]
+      faces=[]
       loc=[]
       predictions=[]
 
-      for i in range(0, box_detect.shape[2]):
-          confidence = box_detect[0, 0, i, 2]
+      for i in range(0, detections.shape[2]):
+          confidence = detections[0, 0, i, 2]
           if confidence > 0.5:
-              box = box_detect[0, 0, i, 3:7] * np.array([width, height, width, height])
+              box = detections[0, 0, i, 3:7] * np.array([width, height, width, height])
               (startX, startY, endX, endY) = box.astype("int")
               (startX, startY) = (max(0, startX), max(0, startY))
               (endX, endY) = (min(width - 1, endX), min(height - 1, endY))
@@ -47,12 +44,12 @@ while True:
               face = img_to_array(face)
               face = preprocess_input(face)
 
-              ROI.append(face)
+              faces.append(face)
               loc.append((startX, startY, endX, endY))
 
-      if len(ROI) > 0:
-          ROI = np.array(ROI, dtype="float32")
-          predictions = fmdm.predict(ROI, batch_size=32)
+      if len(faces) > 0:
+          faces = np.array(faces, dtype="float32")
+          predictions = maskNet.predict(faces, batch_size=32)
 
       for (box, pred) in zip(loc, predictions):
           (startX, startY, endX, endY) = box
@@ -70,4 +67,3 @@ while True:
 
 cap.release()
 cv2.destroyAllWindows()
-
